@@ -18,7 +18,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
 };
 
 export default function Topbar({ user }: TopbarProps) {
-  const [dark, setDark] = useState(true);
+  const [dark, setDark] = useState(false);
   const pathname = usePathname();
 
   const meta = PAGE_META[pathname] ?? { title: "HMS Portal", subtitle: "Smart Hospital Management" };
