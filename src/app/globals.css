@@ -132,3 +132,19 @@
 .animate-slide-in  { animation: slide-in-left 0.3s ease both; }
 .animate-scale-in  { animation: scale-in 0.25s ease both; }
 .animate-pulse-ring { animation: pulse-ring 2s infinite; }
+
+/* Skeleton shimmer */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.animate-skeleton {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--secondary)) 25%,
+    hsl(var(--muted)) 50%,
+    hsl(var(--secondary)) 75%
+  );
+  background-size: 800px 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}

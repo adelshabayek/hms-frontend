@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Search, Filter, Plus, Eye, Phone, Mail, MapPin, Calendar, User, Heart, Bed } from "lucide-react";
-import { mockPatients, Patient } from "@/lib/mock-data";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Search, Plus, Eye, Phone, Mail, MapPin, Calendar, User, Heart, Bed } from "lucide-react";
+import { fetchPatients } from "@/lib/api";
+import { Patient } from "@/lib/mock-data";
 import Badge, { statusBadge } from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
+import { SkeletonBlock } from "@/components/ui/Skeleton";
 
 const BLOOD_COLORS: Record<string, string> = {
   "O+": "bg-red-500/15 text-red-500",
@@ -17,30 +20,34 @@ const BLOOD_COLORS: Record<string, string> = {
   "AB-": "bg-green-700/15 text-green-700",
 };
 
+const statuses = ["All", "Active", "Critical", "Scheduled", "Discharged"];
+
 export default function PatientsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [selected, setSelected] = useState<Patient | null>(null);
   const [showAdd, setShowAdd] = useState(false);
 
-  const statuses = ["All", "Active", "Critical", "Scheduled", "Discharged"];
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["patients", search, statusFilter],
+    queryFn: () => fetchPatients({ search, status: statusFilter }),
+    placeholderData: (prev) => prev, // keep showing old data while refetching
+  });
 
-  const filtered = useMemo(() => {
-    return mockPatients.filter((p) => {
-      const matchSearch =
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.condition.toLowerCase().includes(search.toLowerCase()) ||
-        p.id.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter === "All" || p.status === statusFilter;
-      return matchSearch && matchStatus;
-    });
-  }, [search, statusFilter]);
+  const patients: Patient[] = data?.patients ?? [];
+  const total: number = data?.total ?? 0;
+
+  const allPatientsQuery = useQuery({
+    queryKey: ["patients-all"],
+    queryFn: () => fetchPatients({}),
+  });
+  const allPatients: Patient[] = allPatientsQuery.data?.patients ?? [];
 
   const stats = {
-    total: mockPatients.length,
-    active: mockPatients.filter((p) => p.status === "Active").length,
-    critical: mockPatients.filter((p) => p.status === "Critical").length,
-    discharged: mockPatients.filter((p) => p.status === "Discharged").length,
+    total: allPatients.length,
+    active: allPatients.filter((p) => p.status === "Active").length,
+    critical: allPatients.filter((p) => p.status === "Critical").length,
+    discharged: allPatients.filter((p) => p.status === "Discharged").length,
   };
 
   return (
@@ -63,17 +70,19 @@ export default function PatientsPage() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: "Total Patients", value: stats.total, color: "text-primary", bg: "bg-primary/10" },
-          { label: "Active", value: stats.active, color: "text-accent", bg: "bg-accent/10" },
-          { label: "Critical", value: stats.critical, color: "text-destructive", bg: "bg-destructive/10" },
-          { label: "Discharged", value: stats.discharged, color: "text-muted-foreground", bg: "bg-secondary" },
-        ].map(({ label, value, color, bg }) => (
-          <div key={label} className={`${bg} rounded-2xl p-4 border border-border`}>
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
-          </div>
-        ))}
+        {allPatientsQuery.isLoading
+          ? Array.from({ length: 4 }).map((_, i) => <SkeletonBlock key={i} className="h-20 rounded-2xl" />)
+          : [
+              { label: "Total Patients", value: stats.total, color: "text-primary", bg: "bg-primary/10" },
+              { label: "Active", value: stats.active, color: "text-accent", bg: "bg-accent/10" },
+              { label: "Critical", value: stats.critical, color: "text-destructive", bg: "bg-destructive/10" },
+              { label: "Discharged", value: stats.discharged, color: "text-muted-foreground", bg: "bg-secondary" },
+            ].map(({ label, value, color, bg }) => (
+              <div key={label} className={`${bg} rounded-2xl p-4 border border-border`}>
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
+              </div>
+            ))}
       </div>
 
       {/* Filters */}
@@ -107,6 +116,13 @@ export default function PatientsPage() {
         </div>
       </div>
 
+      {/* Error state */}
+      {isError && (
+        <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-2xl text-sm text-destructive">
+          Failed to load patients. Please try again.
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
@@ -124,14 +140,32 @@ export default function PatientsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-border/50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <SkeletonBlock className="w-9 h-9 rounded-full flex-shrink-0" />
+                        <div className="space-y-1.5">
+                          <SkeletonBlock className="h-4 w-32" />
+                          <SkeletonBlock className="h-3 w-20" />
+                        </div>
+                      </div>
+                    </td>
+                    {Array.from({ length: 6 }).map((_, j) => (
+                      <td key={j} className="px-4 py-4"><SkeletonBlock className="h-4 w-16" /></td>
+                    ))}
+                    <td className="px-4 py-4"><SkeletonBlock className="h-8 w-8 rounded-lg" /></td>
+                  </tr>
+                ))
+              ) : patients.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-16 text-muted-foreground text-sm">
                     No patients match your search.
                   </td>
                 </tr>
               ) : (
-                filtered.map((patient, i) => (
+                patients.map((patient, i) => (
                   <tr
                     key={patient.id}
                     className="border-b border-border/50 hover:bg-secondary/40 transition-colors animate-fade-in"
@@ -177,20 +211,14 @@ export default function PatientsPage() {
           </table>
         </div>
         <div className="px-6 py-3 border-t border-border bg-secondary/20 text-xs text-muted-foreground">
-          Showing {filtered.length} of {mockPatients.length} patients
+          Showing {patients.length} of {allPatients.length} patients
         </div>
       </div>
 
       {/* Patient Detail Modal */}
-      <Modal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title="Patient Details"
-        size="lg"
-      >
+      <Modal open={!!selected} onClose={() => setSelected(null)} title="Patient Details" size="lg">
         {selected && (
           <div className="space-y-5">
-            {/* Profile */}
             <div className="flex items-center gap-4 p-4 bg-secondary/50 rounded-xl">
               <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center text-xl font-bold text-primary">
                 {selected.avatar}
@@ -207,7 +235,6 @@ export default function PatientsPage() {
               </span>
             </div>
 
-            {/* Info Grid */}
             <div className="grid grid-cols-2 gap-3">
               {[
                 { icon: Heart, label: "Condition", value: selected.condition },
@@ -229,7 +256,6 @@ export default function PatientsPage() {
               ))}
             </div>
 
-            {/* Address */}
             <div className="flex items-start gap-3 p-3 bg-secondary/30 rounded-xl">
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <MapPin className="w-3.5 h-3.5 text-primary" />
@@ -244,10 +270,7 @@ export default function PatientsPage() {
               <button className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-all">
                 Edit Record
               </button>
-              <button
-                onClick={() => setSelected(null)}
-                className="flex-1 py-2.5 bg-secondary text-foreground rounded-xl text-sm font-medium hover:bg-secondary/80 transition-all"
-              >
+              <button onClick={() => setSelected(null)} className="flex-1 py-2.5 bg-secondary text-foreground rounded-xl text-sm font-medium hover:bg-secondary/80 transition-all">
                 Close
               </button>
             </div>

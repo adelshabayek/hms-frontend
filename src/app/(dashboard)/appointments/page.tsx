@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, Plus, Calendar, Clock, User, Stethoscope, FileText, ChevronDown } from "lucide-react";
-import { mockAppointments, Appointment } from "@/lib/mock-data";
+import { fetchAppointments } from "@/lib/api";
+import { Appointment } from "@/lib/mock-data";
 import Badge, { statusBadge } from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
+import { SkeletonBlock } from "@/components/ui/Skeleton";
 
 const TYPE_COLORS: Record<string, string> = {
   "Consultation": "bg-blue-500/10 text-blue-500",
@@ -14,6 +17,9 @@ const TYPE_COLORS: Record<string, string> = {
   "Check-up": "bg-accent/10 text-accent",
 };
 
+const statuses = ["All", "Confirmed", "Pending", "Completed", "Cancelled"];
+const types = ["All", "Consultation", "Follow-up", "Emergency", "Surgery", "Check-up"];
+
 export default function AppointmentsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -21,26 +27,25 @@ export default function AppointmentsPage() {
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [showAdd, setShowAdd] = useState(false);
 
-  const statuses = ["All", "Confirmed", "Pending", "Completed", "Cancelled"];
-  const types = ["All", "Consultation", "Follow-up", "Emergency", "Surgery", "Check-up"];
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["appointments", search, statusFilter, typeFilter],
+    queryFn: () => fetchAppointments({ search, status: statusFilter, type: typeFilter }),
+    placeholderData: (prev) => prev,
+  });
 
-  const filtered = useMemo(() => {
-    return mockAppointments.filter((a) => {
-      const matchSearch =
-        a.patient.toLowerCase().includes(search.toLowerCase()) ||
-        a.doctor.toLowerCase().includes(search.toLowerCase()) ||
-        a.department.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter === "All" || a.status === statusFilter;
-      const matchType = typeFilter === "All" || a.type === typeFilter;
-      return matchSearch && matchStatus && matchType;
-    });
-  }, [search, statusFilter, typeFilter]);
+  const allApptsQuery = useQuery({
+    queryKey: ["appointments-all"],
+    queryFn: () => fetchAppointments({}),
+  });
+
+  const appointments: Appointment[] = data?.appointments ?? [];
+  const allAppointments: Appointment[] = allApptsQuery.data?.appointments ?? [];
 
   const stats = {
-    total: mockAppointments.length,
-    confirmed: mockAppointments.filter((a) => a.status === "Confirmed").length,
-    pending: mockAppointments.filter((a) => a.status === "Pending").length,
-    cancelled: mockAppointments.filter((a) => a.status === "Cancelled").length,
+    total: allAppointments.length,
+    confirmed: allAppointments.filter((a) => a.status === "Confirmed").length,
+    pending: allAppointments.filter((a) => a.status === "Pending").length,
+    cancelled: allAppointments.filter((a) => a.status === "Cancelled").length,
   };
 
   return (
@@ -63,36 +68,35 @@ export default function AppointmentsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: "Total", value: stats.total, color: "text-primary", bg: "bg-primary/10" },
-          { label: "Confirmed", value: stats.confirmed, color: "text-accent", bg: "bg-accent/10" },
-          { label: "Pending", value: stats.pending, color: "text-yellow-500", bg: "bg-yellow-500/10" },
-          { label: "Cancelled", value: stats.cancelled, color: "text-destructive", bg: "bg-destructive/10" },
-        ].map(({ label, value, color, bg }) => (
-          <div key={label} className={`${bg} rounded-2xl p-4 border border-border`}>
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
-          </div>
-        ))}
+        {allApptsQuery.isLoading
+          ? Array.from({ length: 4 }).map((_, i) => <SkeletonBlock key={i} className="h-20 rounded-2xl" />)
+          : [
+              { label: "Total", value: stats.total, color: "text-primary", bg: "bg-primary/10" },
+              { label: "Confirmed", value: stats.confirmed, color: "text-accent", bg: "bg-accent/10" },
+              { label: "Pending", value: stats.pending, color: "text-yellow-500", bg: "bg-yellow-500/10" },
+              { label: "Cancelled", value: stats.cancelled, color: "text-destructive", bg: "bg-destructive/10" },
+            ].map(({ label, value, color, bg }) => (
+              <div key={label} className={`${bg} rounded-2xl p-4 border border-border`}>
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
+              </div>
+            ))}
       </div>
 
       {/* Filters */}
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              id="appt-search"
-              type="text"
-              placeholder="Search by patient, doctor, or department..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-            />
-          </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            id="appt-search"
+            type="text"
+            placeholder="Search by patient, doctor, or department..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+          />
         </div>
 
-        {/* Status filter */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground font-medium">Status:</span>
           {statuses.map((s) => (
@@ -127,14 +131,44 @@ export default function AppointmentsPage() {
         </div>
       </div>
 
+      {/* Error state */}
+      {isError && (
+        <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-2xl text-sm text-destructive">
+          Failed to load appointments. Please try again.
+        </div>
+      )}
+
       {/* Appointments Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-card border border-border rounded-2xl p-5 space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <SkeletonBlock className="w-10 h-10 rounded-full flex-shrink-0" />
+                  <div className="space-y-2">
+                    <SkeletonBlock className="h-4 w-32" />
+                    <SkeletonBlock className="h-3 w-16" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <SkeletonBlock className="h-6 w-20" />
+                  <SkeletonBlock className="h-5 w-16" />
+                </div>
+              </div>
+              <SkeletonBlock className="h-4 w-full" />
+              <div className="flex gap-4">
+                <SkeletonBlock className="h-4 w-24" />
+                <SkeletonBlock className="h-4 w-20" />
+              </div>
+            </div>
+          ))
+        ) : appointments.length === 0 ? (
           <div className="col-span-2 text-center py-16 text-muted-foreground text-sm">
             No appointments match your search.
           </div>
         ) : (
-          filtered.map((appt, i) => (
+          appointments.map((appt, i) => (
             <div
               key={appt.id}
               className="bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all cursor-pointer animate-fade-in"
@@ -192,7 +226,6 @@ export default function AppointmentsPage() {
       <Modal open={!!selected} onClose={() => setSelected(null)} title="Appointment Details">
         {selected && (
           <div className="space-y-4">
-            {/* Header */}
             <div className="flex items-center gap-4 p-4 bg-secondary/50 rounded-xl">
               <div className="w-12 h-12 rounded-full bg-primary/15 flex items-center justify-center text-base font-bold text-primary">
                 {selected.patientAvatar}

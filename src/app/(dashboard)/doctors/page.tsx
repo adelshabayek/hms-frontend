@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, Star, Phone, Mail, Clock, Users, Award } from "lucide-react";
-import { mockDoctors, Doctor } from "@/lib/mock-data";
+import { fetchDoctors } from "@/lib/api";
+import { Doctor } from "@/lib/mock-data";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
+import { SkeletonBlock } from "@/components/ui/Skeleton";
 
 const doctorStatusBadge = (status: string) => {
   switch (status) {
@@ -38,29 +41,32 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
+const statuses = ["All", "Available", "Busy", "Off Duty"];
+
 export default function DoctorsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [selected, setSelected] = useState<Doctor | null>(null);
 
-  const statuses = ["All", "Available", "Busy", "Off Duty"];
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["doctors", search, statusFilter],
+    queryFn: () => fetchDoctors({ search, status: statusFilter }),
+    placeholderData: (prev) => prev,
+  });
 
-  const filtered = useMemo(() => {
-    return mockDoctors.filter((d) => {
-      const matchSearch =
-        d.name.toLowerCase().includes(search.toLowerCase()) ||
-        d.specialty.toLowerCase().includes(search.toLowerCase()) ||
-        d.department.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter === "All" || d.status === statusFilter;
-      return matchSearch && matchStatus;
-    });
-  }, [search, statusFilter]);
+  const allDoctorsQuery = useQuery({
+    queryKey: ["doctors-all"],
+    queryFn: () => fetchDoctors({}),
+  });
+
+  const doctors: Doctor[] = data?.doctors ?? [];
+  const allDoctors: Doctor[] = allDoctorsQuery.data?.doctors ?? [];
 
   const stats = {
-    total: mockDoctors.length,
-    available: mockDoctors.filter((d) => d.status === "Available").length,
-    busy: mockDoctors.filter((d) => d.status === "Busy").length,
-    offDuty: mockDoctors.filter((d) => d.status === "Off Duty").length,
+    total: allDoctors.length,
+    available: allDoctors.filter((d) => d.status === "Available").length,
+    busy: allDoctors.filter((d) => d.status === "Busy").length,
+    offDuty: allDoctors.filter((d) => d.status === "Off Duty").length,
   };
 
   return (
@@ -73,17 +79,19 @@ export default function DoctorsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: "Total Doctors", value: stats.total, color: "text-primary", bg: "bg-primary/10" },
-          { label: "Available", value: stats.available, color: "text-accent", bg: "bg-accent/10" },
-          { label: "Busy", value: stats.busy, color: "text-yellow-500", bg: "bg-yellow-500/10" },
-          { label: "Off Duty", value: stats.offDuty, color: "text-muted-foreground", bg: "bg-secondary" },
-        ].map(({ label, value, color, bg }) => (
-          <div key={label} className={`${bg} rounded-2xl p-4 border border-border`}>
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
-          </div>
-        ))}
+        {allDoctorsQuery.isLoading
+          ? Array.from({ length: 4 }).map((_, i) => <SkeletonBlock key={i} className="h-20 rounded-2xl" />)
+          : [
+              { label: "Total Doctors", value: stats.total, color: "text-primary", bg: "bg-primary/10" },
+              { label: "Available", value: stats.available, color: "text-accent", bg: "bg-accent/10" },
+              { label: "Busy", value: stats.busy, color: "text-yellow-500", bg: "bg-yellow-500/10" },
+              { label: "Off Duty", value: stats.offDuty, color: "text-muted-foreground", bg: "bg-secondary" },
+            ].map(({ label, value, color, bg }) => (
+              <div key={label} className={`${bg} rounded-2xl p-4 border border-border`}>
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
+              </div>
+            ))}
       </div>
 
       {/* Filters */}
@@ -117,14 +125,38 @@ export default function DoctorsPage() {
         </div>
       </div>
 
+      {/* Error state */}
+      {isError && (
+        <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-2xl text-sm text-destructive">
+          Failed to load doctors. Please try again.
+        </div>
+      )}
+
       {/* Doctor Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-card border border-border rounded-2xl p-6 space-y-4">
+              <div className="flex items-start justify-between">
+                <SkeletonBlock className="w-14 h-14 rounded-2xl" />
+                <SkeletonBlock className="h-6 w-20" />
+              </div>
+              <SkeletonBlock className="h-5 w-36" />
+              <SkeletonBlock className="h-5 w-24" />
+              <div className="flex gap-4">
+                <SkeletonBlock className="h-10 flex-1" />
+                <SkeletonBlock className="h-10 flex-1" />
+                <SkeletonBlock className="h-10 flex-1" />
+              </div>
+              <SkeletonBlock className="h-4 w-full" />
+            </div>
+          ))
+        ) : doctors.length === 0 ? (
           <div className="col-span-3 text-center py-16 text-muted-foreground text-sm">
             No doctors match your search.
           </div>
         ) : (
-          filtered.map((doc, i) => {
+          doctors.map((doc, i) => {
             const sc = SPECIALTY_COLORS[doc.specialty] ?? { bg: "bg-secondary", text: "text-muted-foreground" };
             return (
               <div
