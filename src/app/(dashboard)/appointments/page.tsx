@@ -189,7 +189,7 @@ export default function AppointmentsPage() {
       </div>
 
       {/* Detail Modal */}
-      <Modal isOpen={!!selected} onClose={() => setSelected(null)} title="Appointment Details">
+      <Modal open={!!selected} onClose={() => setSelected(null)} title="Appointment Details">
         {selected && (
           <div className="space-y-4">
             {/* Header */}
@@ -250,7 +250,7 @@ export default function AppointmentsPage() {
       </Modal>
 
       {/* Add Appointment Modal */}
-      <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New Appointment">
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="New Appointment">
         <div className="space-y-4">
           {["Patient Name", "Doctor", "Department", "Date", "Time"].map((field) => (
             <div key={field}>

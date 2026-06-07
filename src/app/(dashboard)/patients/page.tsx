@@ -183,7 +183,7 @@ export default function PatientsPage() {
 
       {/* Patient Detail Modal */}
       <Modal
-        isOpen={!!selected}
+        open={!!selected}
         onClose={() => setSelected(null)}
         title="Patient Details"
         size="lg"
@@ -256,7 +256,7 @@ export default function PatientsPage() {
       </Modal>
 
       {/* Add Patient Modal */}
-      <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add New Patient" size="lg">
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add New Patient" size="lg">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             {["Full Name", "Age", "Phone", "Email", "Blood Type", "Room"].map((field) => (

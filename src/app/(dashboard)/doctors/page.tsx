@@ -183,7 +183,7 @@ export default function DoctorsPage() {
       </div>
 
       {/* Detail Modal */}
-      <Modal isOpen={!!selected} onClose={() => setSelected(null)} title="Doctor Profile" size="lg">
+      <Modal open={!!selected} onClose={() => setSelected(null)} title="Doctor Profile" size="lg">
         {selected && (() => {
           const sc = SPECIALTY_COLORS[selected.specialty] ?? { bg: "bg-secondary", text: "text-muted-foreground" };
           return (

@@ -9,6 +9,7 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   maxWidth?: string;
+  size?: "sm" | "md" | "lg" | "xl" | "full" | string;
 }
 
 export default function Modal({
@@ -16,8 +17,17 @@ export default function Modal({
   onClose,
   title,
   children,
-  maxWidth = "max-w-xl",
+  maxWidth,
+  size,
 }: ModalProps) {
+  const widthClass = maxWidth || (
+    size === "sm" ? "max-w-sm" :
+    size === "lg" ? "max-w-3xl" :
+    size === "xl" ? "max-w-5xl" :
+    size === "full" ? "max-w-[95vw]" :
+    "max-w-xl"
+  );
+
   // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -43,7 +53,7 @@ export default function Modal({
 
       {/* Panel */}
       <div
-        className={`relative z-10 w-full ${maxWidth} bg-card border border-border rounded-2xl shadow-2xl animate-scale-in flex flex-col max-h-[90vh]`}
+        className={`relative z-10 w-full ${widthClass} bg-card border border-border rounded-2xl shadow-2xl animate-scale-in flex flex-col max-h-[90vh]`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
