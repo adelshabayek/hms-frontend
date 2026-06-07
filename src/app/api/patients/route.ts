@@ -1,25 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mockPatients } from "@/lib/mock-data";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, query, where } from "firebase/firestore";
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const search = searchParams.get("search")?.toLowerCase() ?? "";
-  const status = searchParams.get("status") ?? "All";
+  try {
+    const searchParams = req.nextUrl.searchParams;
+    const search = searchParams.get("search");
+    const status = searchParams.get("status");
 
-  let patients = mockPatients;
+    let ref: any = collection(db, "patients");
+    if (status && status !== "All") {
+      ref = query(ref, where("status", "==", status));
+    }
 
-  if (search) {
-    patients = patients.filter(
-      (p) =>
-        p.name.toLowerCase().includes(search) ||
-        p.condition.toLowerCase().includes(search) ||
-        p.id.toLowerCase().includes(search)
-    );
+    const snapshot = await getDocs(ref);
+    let patients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    if (search) {
+      const q = search.toLowerCase();
+      patients = patients.filter((p: any) =>
+        p.name?.toLowerCase().includes(q) ||
+        p.condition?.toLowerCase().includes(q) ||
+        p.id?.toLowerCase().includes(q)
+      );
+    }
+
+    return NextResponse.json({ patients, total: patients.length });
+  } catch (error) {
+    console.error("Error fetching patients:", error);
+    return NextResponse.json({ patients: [], total: 0 });
   }
-
-  if (status !== "All") {
-    patients = patients.filter((p) => p.status === status);
-  }
-
-  return NextResponse.json({ patients, total: patients.length });
 }

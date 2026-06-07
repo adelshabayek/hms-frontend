@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { User, Bell, Shield, Palette, Globe, Save, Moon, Sun } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, Moon, Sun, Loader2 } from "lucide-react";
+import { useProfileContext } from "@/components/providers/ProfileProvider";
 
 const sections = [
   { id: "profile", label: "Profile", icon: User },
@@ -12,13 +13,44 @@ const sections = [
 ];
 
 export default function SettingsPage() {
+  const { profile, setProfile } = useProfileContext();
+  
   const [activeSection, setActiveSection] = useState("profile");
   const [darkMode, setDarkMode] = useState(true);
+  
+  // Form states
+  const [firstName, setFirstName] = useState(profile.firstName);
+  const [lastName, setLastName] = useState(profile.lastName);
+  const [email, setEmail] = useState(profile.email);
+  const [phone, setPhone] = useState(profile.phone);
+  const [role, setRole] = useState(profile.role);
+  
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSave = async () => {
+    if (!profile.id || profile.id === "unknown") return;
+    setSaving(true);
+    try {
+      const payload = { firstName, lastName, email, phone, role };
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!res.ok) throw new Error("Failed to save");
+
+      // Update global context so Topbar/Sidebar instantly update
+      setProfile(prev => ({ ...prev, ...payload }));
+      
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error("Error saving profile:", error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -32,14 +64,15 @@ export default function SettingsPage() {
         <button
           id="settings-save-btn"
           onClick={handleSave}
+          disabled={saving}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
             saved
               ? "bg-accent text-white shadow-lg shadow-accent/25"
               : "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25"
-          } active:scale-95`}
+          } active:scale-95 disabled:opacity-50 disabled:pointer-events-none`}
         >
-          <Save className="w-4 h-4" />
-          {saved ? "Saved!" : "Save Changes"}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {saved ? "Saved!" : saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
 
@@ -73,8 +106,8 @@ export default function SettingsPage() {
 
               {/* Avatar */}
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center text-2xl font-bold text-primary">
-                  AD
+                <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center text-2xl font-bold text-primary uppercase">
+                  {profile.firstName?.[0] || "A"}{profile.lastName?.[0] || "U"}
                 </div>
                 <div>
                   <button className="px-3 py-1.5 bg-primary/10 text-primary rounded-xl text-xs font-medium hover:bg-primary/20 transition-colors">
@@ -86,29 +119,49 @@ export default function SettingsPage() {
 
               {/* Form */}
               <div className="grid grid-cols-2 gap-4">
-                {[
-                  { label: "First Name", placeholder: "Admin", id: "profile-firstname" },
-                  { label: "Last Name", placeholder: "User", id: "profile-lastname" },
-                  { label: "Email", placeholder: "admin@hospital.com", id: "profile-email" },
-                  { label: "Phone", placeholder: "+1 (555) 000-0000", id: "profile-phone" },
-                ].map(({ label, placeholder, id }) => (
-                  <div key={id}>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
-                    <input
-                      id={id}
-                      type="text"
-                      defaultValue={placeholder}
-                      className="w-full px-3 py-2 bg-secondary border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    />
-                  </div>
-                ))}
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">First Name</label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Email</label>
+                  <input
+                    type="text"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Phone</label>
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Role</label>
                 <input
-                  id="profile-role"
                   type="text"
-                  defaultValue="System Administrator"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
                   className="w-full px-3 py-2 bg-secondary border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
               </div>
@@ -222,9 +275,9 @@ export default function SettingsPage() {
                 {[
                   { label: "Hospital Name", value: "City General Hospital" },
                   { label: "System Version", value: "HMS v2.4.1" },
-                  { label: "Database Status", value: "✅ Connected" },
-                  { label: "Cache Status", value: "✅ Redis Active" },
-                  { label: "Last Backup", value: "2024-06-06 02:00 AM" },
+                  { label: "Database", value: "🔥 Firebase / Firestore" },
+                  { label: "Authentication", value: "🔐 Firebase Auth" },
+                  { label: "Project ID", value: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "hms-portal-4ee94" },
                   { label: "Environment", value: "Production" },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center justify-between p-3 bg-secondary/40 rounded-xl">

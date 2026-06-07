@@ -74,7 +74,7 @@ export default function LoginPage() {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               signIn("credentials", {
-                username: formData.get("username"),
+                email: formData.get("email"),
                 password: formData.get("password"),
                 callbackUrl: "/dashboard",
               });
@@ -83,9 +83,9 @@ export default function LoginPage() {
           >
             <div>
               <input
-                name="username"
-                type="text"
-                placeholder="Username"
+                name="email"
+                type="email"
+                placeholder="Email Address"
                 required
                 className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
@@ -109,13 +109,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-8 flex flex-col items-center gap-2 text-xs text-muted-foreground">
-            <p>Test Accounts:</p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <span className="bg-secondary px-3 py-1.5 rounded-lg border border-border">admin / Admin123!</span>
-              <span className="bg-secondary px-3 py-1.5 rounded-lg border border-border">dr.chen / Doctor123!</span>
-            </div>
-          </div>
+          
         </div>
       </div>
     </div>

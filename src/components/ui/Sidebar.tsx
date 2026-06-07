@@ -15,8 +15,8 @@ import {
   Activity,
   LogOut,
 } from "lucide-react";
-
 import { signOut } from "next-auth/react";
+import { useProfileContext } from "@/components/providers/ProfileProvider";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -27,8 +27,9 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export default function Sidebar({ user }: { user?: any }) {
+export default function Sidebar() {
   const pathname = usePathname();
+  const { profile } = useProfileContext();
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -84,17 +85,17 @@ export default function Sidebar({ user }: { user?: any }) {
             collapsed ? "justify-center" : ""
           }`}
         >
-          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-            {user?.given_name?.[0] || ""}{user?.family_name?.[0] || ""}
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary uppercase">
+            {profile.firstName?.[0] || ""}{profile.lastName?.[0] || ""}
           </div>
           {!collapsed && (
             <div className="animate-fade-in min-w-0">
-              <p className="text-xs font-semibold text-foreground truncate">{user?.name || "User"}</p>
+              <p className="text-xs font-semibold text-foreground truncate">{profile.firstName} {profile.lastName}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-accent/10 text-accent font-medium capitalize">
-                  {user?.roles?.[0] || "User"}
+                  {profile.role}
                 </span>
-                <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{profile.email}</p>
               </div>
             </div>
           )}

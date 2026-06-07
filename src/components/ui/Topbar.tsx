@@ -3,10 +3,7 @@
 import { Bell, Moon, Sun, Search } from "lucide-react";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-
-interface TopbarProps {
-  user?: any;
-}
+import { useProfileContext } from "@/components/providers/ProfileProvider";
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": { title: "Dashboard", subtitle: "Welcome back" },
@@ -17,7 +14,8 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/settings": { title: "Settings", subtitle: "Manage your account and system preferences" },
 };
 
-export default function Topbar({ user }: TopbarProps) {
+export default function Topbar() {
+  const { profile } = useProfileContext();
   const [dark, setDark] = useState(false);
   const pathname = usePathname();
 
@@ -66,7 +64,7 @@ export default function Topbar({ user }: TopbarProps) {
 
         {/* Avatar */}
         <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold ml-1 cursor-pointer hover:opacity-90 transition-opacity">
-          {user?.given_name?.[0] || "A"}{user?.family_name?.[0] || "U"}
+          {profile.firstName?.[0] || "A"}{profile.lastName?.[0] || "U"}
         </div>
       </div>
     </header>
